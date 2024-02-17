@@ -1,25 +1,24 @@
-import React from 'react';
-import logo from './logo.svg';
 import './App.css';
+import { Canvas } from '@react-three/fiber';
+import { Box } from './components/three/Box';
+import { Apartment } from './components/three/Appertment';
+import { CameraControls } from '@react-three/drei';
+import { useRef } from 'react';
+import FirstPersonCameraController from './components/three/FirstPersonCameraController';
+import CameraController from './components/three/CameraController';
 
 function App() {
+  const cameraControlRef = useRef<CameraControls | null>(null);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Canvas style={{width:"100vw", height:"100vh"}} >
+      {/* <CameraControls ref={cameraControlRef} /> */}
+      {/* <FirstPersonCameraController /> */}
+      <CameraController/>
+      <ambientLight />
+      <pointLight position={[10, 10, 10]} />
+      <Apartment />
+    </Canvas>
   );
 }
 
