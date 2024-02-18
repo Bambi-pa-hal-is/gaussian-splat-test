@@ -1,11 +1,11 @@
 import './App.css';
 import { Canvas } from '@react-three/fiber';
 import { Box } from './components/three/Box';
-import { Apartment } from './components/three/Appertment';
 import { CameraControls } from '@react-three/drei';
 import { useRef } from 'react';
 import FirstPersonCameraController from './components/three/FirstPersonCameraController';
 import CameraController from './components/three/CameraController';
+import SplatRenderer from './components/three/SplatRenderer';
 
 function App() {
   const cameraControlRef = useRef<CameraControls | null>(null);
@@ -17,7 +17,8 @@ function App() {
       <CameraController/>
       <ambientLight />
       <pointLight position={[10, 10, 10]} />
-      <Apartment />
+      <Box/>
+      {/* <SplatRenderer splatFile={"./vardagsrum.ply"}  /> */}
     </Canvas>
   );
 }
