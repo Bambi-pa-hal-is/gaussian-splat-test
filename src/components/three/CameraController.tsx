@@ -67,35 +67,36 @@ const CameraController = () => {
     };
   }, [camera, gl.domElement]);
 
-  useFrame(() => {
+  useFrame((state, delta) => {
+    const speed = 5; // Adjust this value to control the overall speed of the movement
     const direction = new THREE.Vector3();
-
+  
     if (moveForward.current) direction.z -= 1;
     if (moveBackward.current) direction.z += 1;
     if (moveLeft.current) direction.x -= 1;
     if (moveRight.current) direction.x += 1;
-
-    direction.normalize();
-
+  
+    direction.normalize().multiplyScalar(speed * delta);
+  
     // Convert camera quaternion to Euler angles
     const euler = new THREE.Euler(0, 0, 0, 'YXZ');
     euler.setFromQuaternion(camera.quaternion);
-
+  
     // Reset pitch and roll (keep yaw)
     euler.x = 0;
     euler.z = 0;
-
+  
     // Convert back to quaternion
     const yawQuaternion = new THREE.Quaternion();
     yawQuaternion.setFromEuler(euler);
-
+  
     // Apply the quaternion with only yaw to the direction
     direction.applyQuaternion(yawQuaternion);
-
-    camera.position.add(direction.multiplyScalar(0.1));
+  
+    camera.position.add(direction);
     // Optionally, ensure the camera's Y position is locked to a certain height
     // camera.position.y = fixedYValue; // Set this to your desired Y position
-});
+  });
 
 
   return null;
