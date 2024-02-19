@@ -6,6 +6,7 @@ import { CameraControls } from '@react-three/drei';
 import { useRef } from 'react';
 import FirstPersonCameraController from './components/three/FirstPersonCameraController';
 import CameraController from './components/three/CameraController';
+import { Entrance } from './components/three/Entrance';
 
 function App() {
   const cameraControlRef = useRef<CameraControls | null>(null);
@@ -18,6 +19,7 @@ function App() {
       <ambientLight />
       <pointLight position={[10, 10, 10]} />
       <Apartment />
+      <Entrance />
     </Canvas>
   );
 }
