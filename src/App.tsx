@@ -12,17 +12,19 @@ function App() {
   const cameraControlRef = useRef<CameraControls | null>(null);
 
   return (
-    <Canvas
+<Canvas
   style={{ width: "100vw", height: "100vh" }}
   dpr={1}
-  camera={{ aspect: 1280 / 720, position: [0, 0, 5] }}
+  camera={{ fov: 50, aspect: 1280 / 720, position: [0, 0, 5] }}
   onCreated={({ gl, camera }) => {
-    // Force internal render resolution
+    // Fixed internal render resolution
     gl.setSize(1280, 720, false);
 
-    // Ensure correct projection
-    camera.aspect = 1280 / 720;
-    camera.updateProjectionMatrix();
+    // Type guard for TS + correct runtime behavior
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.aspect = 1280 / 720;
+      camera.updateProjectionMatrix();
+    }
   }}
 >
       {/* <CameraControls ref={cameraControlRef} /> */}
