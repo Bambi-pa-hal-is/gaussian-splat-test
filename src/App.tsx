@@ -19,12 +19,6 @@ function App() {
   onCreated={({ gl, camera }) => {
     // Fixed internal render resolution
     gl.setSize(1280, 720, false);
-
-    // Type guard for TS + correct runtime behavior
-    if (camera instanceof THREE.PerspectiveCamera) {
-      camera.aspect = 1280 / 720;
-      camera.updateProjectionMatrix();
-    }
   }}
 >
       {/* <CameraControls ref={cameraControlRef} /> */}
