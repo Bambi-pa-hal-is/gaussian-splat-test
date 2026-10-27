@@ -1,49 +1,79 @@
 Preview
 [https://gaussiansplat-6vxos.ondigitalocean.app/](https://gaussiansplat-6vxos.ondigitalocean.app/)
 
-# Getting Started with Create React App
+# My apartment
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A walkable Gaussian splat of the apartment, in two versions: the real capture and a
+styled one. A button (or `T`) turns one into the other with a wave that spreads out
+from where you stand. Built with React, TypeScript, Vite and [PlayCanvas](https://playcanvas.com/).
 
-## Available Scripts
+- First person walking with collision: mouse to look, WASD, Shift to sprint, Space to jump.
+  On phones (portrait): a joystick to walk, drag to look, and a jump button.
+- Both splats are streamed with 4 levels of detail. A quality setting (Auto / Low /
+  Medium / High) picks how many splats are drawn; Auto detects the device and steps down
+  if the frame rate stays low.
+- A dev-only editor for drawing the collision boxes.
 
-In the project directory, you can run:
+## Running
 
-### `npm start`
+Needs Node 20.19+ or 22.12+.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # production build in build/
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+To try it on a phone on the same network, run `npx vite --host` and open the address it
+prints. Add `?touch` to the URL to get the phone controls on a desktop.
 
-### `npm test`
+## Collision editor (dev only)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Open [http://localhost:5173/editor](http://localhost:5173/editor) while `npm run dev` is
+running. It is not part of production builds.
 
-### `npm run build`
+- **Top view:** drag to draw a box, click to select, drag a selected box to move it and its
+  edges to resize. Right-drag pans, the wheel zooms. The green arrow is the spawn point.
+- **Align:** press on a wall and drag around the point to rotate the splats until the wall
+  lines up with the guides.
+- **Adjust splat:** tilt, height and lift per splat, to line the two captures up.
+- **Fly / Walk test:** check the boxes in 3D.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Export the JSON with **Copy JSON** and paste it into
+[`src/collision/colliders.json`](src/collision/colliders.json); the main page reads it
+from there.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Splat files
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+`public/splats/<name>-lod/` holds the streamed LOD sets: `lod-meta.json` indexes chunks of
+the scene at 100%, 50%, 25% and 10% of the splats, each stored in the SOG format (splat
+properties packed into WebP images that are uploaded straight to the GPU).
 
-### `npm run eject`
+They are generated from the original `.ply` captures (not in the repo, ~250 MB each) with
+[splat-transform](https://github.com/playcanvas/splat-transform):
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```
+# decimated levels (repeat for 25 and 10)
+npx @playcanvas/splat-transform styled-splat.ply --decimate-adaptive 50% styled_50.ply
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# combine into a streamed LOD set
+npx @playcanvas/splat-transform styled-splat.ply -l 0 styled_50.ply -l 1 styled_25.ply -l 2 styled_10.ply -l 3 \
+    --lod-chunk-count 64 public/splats/styled-lod/lod-meta.json
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+The same goes for `nostyle-splat.ply` into `public/splats/nostyle-lod/`. The transform that
+lines the unstyled capture up with the styled one is in
+[`src/viewer/splatScene.ts`](src/viewer/splatScene.ts) (`NOSTYLE_TO_STYLED`).
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## Code
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Path | What |
+|---|---|
+| `src/viewer/splatScene.ts` | PlayCanvas app, both splats, alignment, LOD and quality |
+| `src/viewer/revealShader.ts` | shader for the transition wave (and the editor's ceiling slice) |
+| `src/viewer/revealTransition.ts` | animates the wave |
+| `src/viewer/fpsController.ts` | walking, jumping, mouse / touch input |
+| `src/viewer/quality.ts` | quality presets, device detection, frame rate monitor |
+| `src/collision/` | collision boxes and the collision code |
+| `src/editor/` | the dev-only editor |
+| `src/App.tsx`, `src/TouchControls.tsx` | page UI and phone controls |
