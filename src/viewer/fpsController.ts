@@ -44,6 +44,10 @@ export class FpsController {
     private keys = new Set<string>();
     /** analog walk input from the joystick: x = right, y = forward, length <= 1 */
     private readonly moveAxis = { x: 0, y: 0 };
+    /** whether the player moved, turned or was in the air during the last update */
+    private movedLastUpdate = false;
+    private lastYaw = 0;
+    private lastPitch = 0;
     /** the finger currently dragging to look, if any */
     private look: { pointerId: number; x: number; y: number } | null = null;
     private collision: CollisionData;
@@ -64,6 +68,11 @@ export class FpsController {
         window.addEventListener('keyup', this.onKeyUp);
         window.addEventListener('blur', this.onBlur);
         this.respawn();
+    }
+
+    /** true while walking, falling, jumping or turning the view */
+    get moving() {
+        return this.movedLastUpdate;
     }
 
     get locked() {
@@ -160,6 +169,12 @@ export class FpsController {
 
         if (this.feet.y < FLOOR_Y - RESPAWN_DEPTH) this.respawn();
         this.syncCamera();
+
+        const walking = Math.hypot(this.velocity.x, this.velocity.z) > 0.02 * METER;
+        const turning = this.yaw !== this.lastYaw || this.pitch !== this.lastPitch;
+        this.movedLastUpdate = walking || turning || !this.grounded;
+        this.lastYaw = this.yaw;
+        this.lastPitch = this.pitch;
     }
 
     destroy() {

@@ -52,6 +52,34 @@ export type SplatSceneEvents = {
     onError?: (message: string) => void;
 };
 
+/** Chunk downloads of the streamed LOD sets so far. */
+export type StreamingStatus = {
+    /** chunks downloaded (or given up on) */
+    done: number;
+    /** chunks downloading or waiting to */
+    pending: number;
+};
+
+// The engine's chunk loader keeps its queue in fields that aren't part of its public API.
+// They are read defensively: if a later engine version renames them, nothing breaks,
+// the status just reads as nothing pending.
+type ChunkLoaderInternals = {
+    _urlToAsset?: Map<string, pc.Asset>;
+    _loadQueue?: Map<string, number>;
+    _failed?: Set<string>;
+};
+
+function chunkStatus(asset: pc.Asset | null): StreamingStatus {
+    const resource = asset?.resource as { octree?: { assetLoader?: ChunkLoaderInternals } } | undefined;
+    const loader = resource?.octree?.assetLoader;
+    if (!loader?._urlToAsset) return { done: 0, pending: 0 };
+    let done = 0;
+    for (const [url, chunk] of loader._urlToAsset) {
+        if (chunk.loaded || loader._failed?.has(url)) done++;
+    }
+    return { done, pending: loader._urlToAsset.size - done + (loader._loadQueue?.size ?? 0) };
+}
+
 export type SplatScene = {
     app: pc.Application;
     camera: pc.Entity;
@@ -63,6 +91,8 @@ export type SplatScene = {
     setSceneYaw: (yaw: number) => void;
     /** Applies a rendering quality preset (splat budget, finest LOD, resolution). */
     setQuality: (quality: Quality) => void;
+    /** chunk downloads of both splats, for loading indicators */
+    getStreamingStatus: () => StreamingStatus;
     /** Fine-adjusts one splat (tilt, height, lift) around SCENE_PIVOT on the floor. */
     setSplatAdjust: (splat: 'styled' | 'nostyle', adjust: SplatAdjust) => void;
     destroy: () => void;
@@ -174,6 +204,7 @@ export function createSplatScene(canvas: HTMLCanvasElement, quality: Quality, ev
     };
 
     let destroyed = false;
+    let splatAssets: pc.Asset[] = [];
     const loadProgress = [0, 0];
     const reportLoad = () => events.onLoadProgress?.((loadProgress[0] + loadProgress[1]) / 2);
 
@@ -183,6 +214,7 @@ export function createSplatScene(canvas: HTMLCanvasElement, quality: Quality, ev
         loadSplat(app, 'styled', '/splats/styled-lod/lod-meta.json', (p) => { loadProgress[1] = p; reportLoad(); })
     ]).then(([nostyleAsset, styledAsset]) => {
         if (destroyed) return;
+        splatAssets = [nostyleAsset, styledAsset];
         for (const [entity, asset] of [[nostyle, nostyleAsset], [styled, styledAsset]] as const) {
             entity.addComponent('gsplat', {
                 asset,
@@ -208,6 +240,15 @@ export function createSplatScene(canvas: HTMLCanvasElement, quality: Quality, ev
             reveal.origin.copy(origin);
             reveal.radius = radius;
             applyUniforms();
+        },
+        getStreamingStatus() {
+            const total = { done: 0, pending: 0 };
+            for (const asset of splatAssets) {
+                const status = chunkStatus(asset);
+                total.done += status.done;
+                total.pending += status.pending;
+            }
+            return total;
         },
         setQuality(next) {
             quality = next;

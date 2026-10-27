@@ -11,7 +11,10 @@ from where you stand. Built with React, TypeScript, Vite and [PlayCanvas](https:
   On phones (portrait): a joystick to walk, drag to look, and a jump button.
 - Both splats are streamed with 4 levels of detail. A quality setting (Auto / Low /
   Medium / High) picks how many splats are drawn; Auto detects the device and steps down
-  if the frame rate stays low.
+  if the frame rate stays low. While you stand still the view sharpens to High, and drops
+  back to the chosen quality as soon as you move ("Sharpen when still").
+- A loading screen until the first splat data has arrived, and a small indicator while
+  more detail streams in.
 - A dev-only editor for drawing the collision boxes.
 
 ## Running

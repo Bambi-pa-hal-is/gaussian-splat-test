@@ -18,6 +18,11 @@ export class RevealTransition {
         this.scene = scene;
     }
 
+    /** true while the wave is moving */
+    get animating() {
+        return this.anim !== null;
+    }
+
     get styled() {
         return this.anim ? this.anim.to === 1 : this.progress >= 1;
     }

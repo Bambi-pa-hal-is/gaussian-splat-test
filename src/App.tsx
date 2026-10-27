@@ -10,6 +10,16 @@ const QUALITY_LABELS: Record<Quality, string> = { low: 'Low', medium: 'Medium', 
 // phones and tablets get on-screen controls; add ?touch to the URL to try them on a desktop
 const TOUCH_UI = window.matchMedia('(pointer: coarse)').matches || new URLSearchParams(window.location.search).has('touch');
 
+const SHARPEN_KEY = 'apartment-sharpen';
+
+function loadSharpenSetting(): boolean {
+  try {
+    return localStorage.getItem(SHARPEN_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
 function loadQualitySetting(): QualitySetting {
   try {
     const saved = localStorage.getItem(QUALITY_KEY);
@@ -34,15 +44,33 @@ export default function App() {
   const [quality, setQuality] = useState<Quality>('medium');
   // touch hint stays until the first touch on the view
   const [touchHint, setTouchHint] = useState(true);
+  const [sharpenWhenStill, setSharpenWhenStill] = useState(loadSharpenSetting);
+  const [sharpened, setSharpened] = useState(false);
+  // chunk streaming: the first batch is the loading screen, later ones a small indicator
+  const [initialLoaded, setInitialLoaded] = useState(false);
+  const [streaming, setStreaming] = useState({ pending: 0, progress: 0 });
+  // chunks already done when the current batch started, so each batch counts from 0%
+  const batchStartRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const viewer = createViewer(canvasRef.current!, loadQualitySetting(), {
+    const viewer = createViewer(canvasRef.current!, loadQualitySetting(), loadSharpenSetting(), {
       onLoadProgress: setLoadProgress,
       onReady: () => setReady(true),
       onTransitionProgress: setTransition,
       onError: setError,
       onPointerLockChange: setLocked,
       onQualityChange: (q) => setQuality(q),
+      onSharpenChange: setSharpened,
+      onStreamingChange: ({ done, pending }) => {
+        if (pending > 0 && batchStartRef.current === null) batchStartRef.current = done;
+        const start = batchStartRef.current ?? done;
+        const total = done - start + pending;
+        setStreaming({ pending, progress: total > 0 ? (done - start) / total : 1 });
+        if (pending === 0) {
+          batchStartRef.current = null;
+          if (done > 0) setInitialLoaded(true);
+        }
+      },
     });
     viewerRef.current = viewer;
     return () => {
@@ -85,30 +113,40 @@ export default function App() {
     <div className={TOUCH_UI ? 'app touch' : 'app'}>
       <canvas ref={canvasRef} className="viewer" onPointerDown={() => setTouchHint(false)} />
 
-      {!ready && (
-        <div className="overlay">
+      {!initialLoaded && (
+        <div className="overlay loading-screen">
           {error ? (
             <p className="error">Failed to load splats: {error}</p>
           ) : (
             <>
-              <p>Loading splats… {Math.round(loadProgress * 100)}%</p>
+              <p>Loading apartment… {ready ? `${Math.round(streaming.progress * 100)}%` : ''}</p>
               <div className="bar">
-                <div style={{ width: `${loadProgress * 100}%` }} />
+                {/* the index files are tiny; the bar is really about the splat chunks */}
+                <div style={{ width: `${(ready ? streaming.progress : loadProgress * 0.05) * 100}%` }} />
               </div>
             </>
           )}
         </div>
       )}
 
+      {initialLoaded && streaming.pending > 0 && (
+        <div className="streaming">
+          <span>{sharpened ? 'Sharpening…' : 'Loading detail…'}</span>
+          <div className="bar">
+            <div style={{ width: `${streaming.progress * 100}%` }} />
+          </div>
+        </div>
+      )}
+
       {TOUCH_UI ? (
         <>
-          {ready && touchHint && <div className="click-hint">Drag to look around · use the stick to walk</div>}
+          {initialLoaded && touchHint && <div className="click-hint">Drag to look around · use the stick to walk</div>}
           <Joystick onMove={(x, y) => viewerRef.current?.setMoveAxis(x, y)} />
           <JumpButton onJump={() => viewerRef.current?.jump()} />
         </>
       ) : (
         <>
-          {ready && !locked && <div className="click-hint">Click to walk around</div>}
+          {initialLoaded && !locked && <div className="click-hint">Click to walk around</div>}
           {locked && <div className="crosshair" />}
         </>
       )}
@@ -145,6 +183,24 @@ export default function App() {
             <option value="medium">Medium</option>
             <option value="high">High</option>
           </select>
+        </label>
+        <label className="sharpen" title="Show High quality while you stand still">
+          <input
+            type="checkbox"
+            checked={sharpenWhenStill}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              setSharpenWhenStill(enabled);
+              viewerRef.current?.setSharpenWhenStill(enabled);
+              try {
+                localStorage.setItem(SHARPEN_KEY, enabled ? 'on' : 'off');
+              } catch {
+                // the choice just won't be remembered
+              }
+              e.currentTarget.blur();
+            }}
+          />
+          <span>Sharpen when still</span>
         </label>
       </div>
 
